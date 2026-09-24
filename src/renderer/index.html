@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkedIn Connect</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>LinkedIn Connect</h1>
+      <p class="subtitle">One-time sign-in, saved session, automated Connect on My Network</p>
+    </header>
+
+    <section class="card status-card">
+      <div class="status-row">
+        <span class="label">Session</span>
+        <span id="sessionBadge" class="badge badge-warn">Checking…</span>
+      </div>
+      <p id="sessionHint" class="hint">Session data is stored locally on this PC only.</p>
+    </section>
+
+    <section class="card">
+      <h2>1. Sign in (once)</h2>
+      <p class="hint">Opens LinkedIn in a secure window. Complete login and 2FA, then close the window.</p>
+      <button type="button" id="btnLogin" class="btn primary">Sign in to LinkedIn</button>
+    </section>
+
+    <section class="card">
+      <h2>2. Run automation</h2>
+      <p class="hint">Visits <code>mynetwork/grow</code> and clicks <strong>Connect</strong> with safe delays.</p>
+      <div class="actions">
+        <button type="button" id="btnStart" class="btn primary" disabled>Start connecting</button>
+        <button type="button" id="btnStop" class="btn secondary" disabled>Stop</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <label>
+        Min delay between connects (seconds)
+        <input type="number" id="minDelay" min="15" max="600" value="45" />
+      </label>
+      <label>
+        Max delay between connects (seconds)
+        <input type="number" id="maxDelay" min="15" max="900" value="90" />
+      </label>
+      <label>
+        Max connects per run
+        <input type="number" id="maxConnects" min="1" max="50" value="15" />
+      </label>
+      <button type="button" id="btnSave" class="btn secondary">Save settings</button>
+    </section>
+
+    <section class="card log-card">
+      <h2>Activity log</h2>
+      <pre id="log" aria-live="polite"></pre>
+    </section>
+
+    <footer>
+      <p>Use responsibly. Automated actions may violate LinkedIn’s User Agreement. You are responsible for your account.</p>
+    </footer>
+    <script src="renderer.js"></script>
+  </body>
+</html>
