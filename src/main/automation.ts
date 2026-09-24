@@ -73,6 +73,39 @@ const SCROLL_FEED_SCRIPT = `
 })();
 `;
 
+/** LinkedIn toast when the weekly connection invitation cap is hit. */
+const CHECK_WEEKLY_LIMIT_SCRIPT = `
+(() => {
+  const needles = [
+    "reached the weekly limit",
+    "weekly limit for connection invitations",
+    "was not sent because you have reached",
+  ];
+  const matchText = (raw) => {
+    const lower = (raw || "").toLowerCase();
+    return needles.find((n) => lower.includes(n)) ? raw.trim() : null;
+  };
+
+  const regions = document.querySelectorAll(
+    '[role="alert"], [aria-live="assertive"], [aria-live="polite"], .artdeco-toast-item, [data-test-artdeco-toast-item]'
+  );
+  for (const el of regions) {
+    const hit = matchText(el.innerText || el.textContent || "");
+    if (hit) return { detected: true, message: hit.slice(0, 280) };
+  }
+
+  const hit = matchText(document.body?.innerText || "");
+  if (hit) {
+    const lower = hit.toLowerCase();
+    const idx = lower.indexOf("reached the weekly limit");
+    const start = idx >= 0 ? Math.max(0, idx - 80) : 0;
+    return { detected: true, message: hit.slice(start, start + 280) };
+  }
+
+  return { detected: false };
+})();
+`;
+
 export function requestStopAutomation(): void {
   stopRequested = true;
 }
@@ -81,16 +114,56 @@ export function isAutomationRunning(): boolean {
   return automationWindow !== null && !automationWindow.isDestroyed();
 }
 
+type WeeklyLimitCheck = { detected: boolean; message?: string };
+
+async function detectWeeklyLimit(): Promise<WeeklyLimitCheck> {
+  if (!automationWindow || automationWindow.isDestroyed()) {
+    return { detected: false };
+  }
+  return automationWindow.webContents.executeJavaScript(CHECK_WEEKLY_LIMIT_SCRIPT, true);
+}
+
+async function sleepMonitored(
+  ms: number,
+  checkStop: () => boolean,
+  onWeeklyLimit: (message?: string) => void
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    if (checkStop()) {
+      throw new Error("stopped");
+    }
+    const limit = await detectWeeklyLimit();
+    if (limit.detected) {
+      onWeeklyLimit(limit.message);
+      stopRequested = true;
+      throw new Error("weekly_limit");
+    }
+    const remaining = ms - (Date.now() - start);
+    await new Promise((resolve) => setTimeout(resolve, Math.min(750, remaining)));
+  }
+}
+
 export async function runConnectAutomation(
   settings: AutomationSettings,
   log: LogFn
-): Promise<{ connected: number; stopped: boolean }> {
+): Promise<{ connected: number; stopped: boolean; weeklyLimitReached?: boolean }> {
   if (isAutomationRunning()) {
     throw new Error("Automation is already running.");
   }
 
   stopRequested = false;
   let connected = 0;
+  let weeklyLimitReached = false;
+
+  const handleWeeklyLimit = (message?: string) => {
+    weeklyLimitReached = true;
+    log("Weekly connection limit detected — auto-stopping.");
+    if (message) {
+      log(message.replace(/\s+/g, " ").trim());
+    }
+    log("Try again next week or use LinkedIn manually until the limit resets.");
+  };
 
   automationWindow = new BrowserWindow({
     width: 1280,
@@ -115,19 +188,25 @@ export async function runConnectAutomation(
     log("Opening My Network suggestions…");
     await automationWindow.loadURL(GROW_URL);
 
-    await sleep(4000, checkStop);
+    await sleepMonitored(4000, checkStop, handleWeeklyLimit);
 
     const tryClickConnect = async (): Promise<{ clicked: boolean; name?: string }> => {
       return automationWindow!.webContents.executeJavaScript(CLICK_ONE_CONNECT_SCRIPT, true);
     };
 
     while (connected < settings.maxConnects && !checkStop()) {
+      const limitBefore = await detectWeeklyLimit();
+      if (limitBefore.detected) {
+        handleWeeklyLimit(limitBefore.message);
+        break;
+      }
+
       let result = await tryClickConnect();
 
       if (!result?.clicked) {
         log("No Connect button in view — scrolling for more suggestions…");
         await automationWindow.webContents.executeJavaScript(SCROLL_FEED_SCRIPT, true);
-        await sleep(2500, checkStop);
+        await sleepMonitored(2500, checkStop, handleWeeklyLimit);
         result = await tryClickConnect();
         if (!result?.clicked) {
           log("No more Connect buttons found. Stopping.");
@@ -135,17 +214,28 @@ export async function runConnectAutomation(
         }
       }
 
+      await sleepMonitored(2200, checkStop, handleWeeklyLimit);
+      const limitAfterClick = await detectWeeklyLimit();
+      if (limitAfterClick.detected) {
+        handleWeeklyLimit(limitAfterClick.message);
+        break;
+      }
+
       connected += 1;
       log(`Sent connect #${connected}${result.name ? ` (${result.name})` : ""}.`);
       const wait = randomDelay(settings.minDelayMs, settings.maxDelayMs);
       log(`Waiting ${Math.round(wait / 1000)}s before next action…`);
-      await sleep(wait, checkStop);
+      await sleepMonitored(wait, checkStop, handleWeeklyLimit);
     }
   } catch (err) {
+    if (err instanceof Error && err.message === "weekly_limit") {
+      log("Automation stopped (weekly limit).");
+      return { connected, stopped: true, weeklyLimitReached: true };
+    }
     const stopped = checkStop() || (err instanceof Error && err.message === "stopped");
     if (stopped) {
       log("Automation stopped.");
-      return { connected, stopped: true };
+      return { connected, stopped: true, weeklyLimitReached };
     }
     throw err;
   } finally {
@@ -154,6 +244,11 @@ export async function runConnectAutomation(
     }
     automationWindow = null;
     stopRequested = false;
+  }
+
+  if (weeklyLimitReached) {
+    log(`Stopped at ${connected} connect(s) this run — weekly invitation limit reached.`);
+    return { connected, stopped: true, weeklyLimitReached: true };
   }
 
   log(`Finished. ${connected} connection request(s) sent this run.`);

@@ -1,6 +1,6 @@
 {
   "name": "linkedin-connection-automation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Windows desktop app: one-time LinkedIn login, saved session, Connect automation on My Network",
   "main": "dist/main/main.js",
   "author": "cosmichackerx",

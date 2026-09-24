@@ -66,6 +66,9 @@ btnStart.addEventListener("click", async () => {
   try {
     const result = await window.linkedInConnect.startAutomation();
     if (!result.ok) appendLog(result.error || "Could not start.");
+    else if (result.weeklyLimitReached) {
+      appendLog("LinkedIn weekly invite limit reached — run ended automatically.");
+    }
   } finally {
     btnStop.disabled = true;
     btnStart.disabled = !(await window.linkedInConnect.getSessionStatus()).loggedIn;

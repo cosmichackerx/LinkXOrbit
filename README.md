@@ -25,6 +25,8 @@ Tagged releases (`v*`) also attach the same `.exe` to a GitHub Release.
 4. Click **Start connecting**. A LinkedIn window opens on the grow page; you can watch progress in the app log.
 5. Use **Stop** anytime.
 
+If LinkedIn shows the **weekly connection invitation limit** toast (“was not sent because you have reached the weekly limit…”), the app **detects it and auto-stops** so you do not keep clicking in vain.
+
 Session files live under your Windows user profile (Electron `userData` path shown in the app after sign-in). They are **not** uploaded to GitHub.
 
 ## Build locally (Windows)
