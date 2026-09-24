@@ -23,6 +23,7 @@
   "build": {
     "appId": "com.linkedinconnect.automation",
     "productName": "LinkedIn Connect",
+    "publish": null,
     "directories": {
       "output": "release"
     },
