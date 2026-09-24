@@ -29,6 +29,10 @@ If LinkedIn shows the **weekly connection invitation limit** toast (“was not s
 
 Session files live under your Windows user profile (Electron `userData` path). They are **not** uploaded to GitHub.
 
+## App size
+
+LinkXOrbit uses **Electron** (Chromium + Node), so the installer is usually **~70–90 MB** even after optimization (max NSIS compression, English-only locale packs, minified JS, production-only dependencies). That is normal for Electron; getting much smaller would mean a different stack (e.g. Tauri + WebView2).
+
 ## Build locally (Windows)
 
 ```bash

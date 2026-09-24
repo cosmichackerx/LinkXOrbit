@@ -1,15 +1,14 @@
 {
   "name": "linkxorbit",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "LinkXOrbit — Windows desktop: LinkedIn session save and My Network Connect automation",
   "main": "dist/main/main.js",
   "author": "cosmichackerx",
   "license": "MIT",
   "scripts": {
-    "build": "tsc && node -e \"require('fs').cpSync('src/renderer','dist/renderer',{recursive:true})\"",
+    "build": "tsc && node -e \"require('fs').cpSync('src/renderer','dist/renderer',{recursive:true})\" && node scripts/minify-dist.cjs",
     "start": "npm run build && electron .",
-    "pack:win": "npm run build && electron-builder --win --x64",
-    "postinstall": "electron-builder install-app-deps"
+    "pack:win": "npm run build && node scripts/pack-win.cjs"
   },
   "dependencies": {
     "electron-store": "^8.2.0"
@@ -18,18 +17,27 @@
     "@types/node": "^22.10.0",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
     "typescript": "^5.7.2"
   },
   "build": {
     "appId": "com.linkxorbit.app",
     "productName": "LinkXOrbit",
     "publish": null,
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": ["en-US"],
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "removePackageScripts": true,
+    "afterPack": "./scripts/electron-after-pack.cjs",
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
-      "assets/**/*"
+      "!dist/**/*.map",
+      "package.json"
     ],
     "win": {
       "target": [
