@@ -169,7 +169,7 @@ export async function runConnectAutomation(
     width: 1280,
     height: 900,
     show: true,
-    title: "LinkedIn Connect — automation",
+    title: "LinkXOrbit — automation",
     webPreferences: {
       partition: LINKEDIN_PARTITION,
       contextIsolation: true,

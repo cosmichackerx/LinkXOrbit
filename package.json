@@ -1,7 +1,7 @@
 {
-  "name": "linkedin-connection-automation",
-  "version": "1.0.1",
-  "description": "Windows desktop app: one-time LinkedIn login, saved session, Connect automation on My Network",
+  "name": "linkxorbit",
+  "version": "1.0.2",
+  "description": "LinkXOrbit — Windows desktop: LinkedIn session save and My Network Connect automation",
   "main": "dist/main/main.js",
   "author": "cosmichackerx",
   "license": "MIT",
@@ -21,8 +21,8 @@
     "typescript": "^5.7.2"
   },
   "build": {
-    "appId": "com.linkedinconnect.automation",
-    "productName": "LinkedIn Connect",
+    "appId": "com.linkxorbit.app",
+    "productName": "LinkXOrbit",
     "publish": null,
     "directories": {
       "output": "release"
@@ -38,7 +38,7 @@
           "arch": ["x64"]
         }
       ],
-      "artifactName": "LinkedIn-Connect-Setup-${version}.${ext}"
+      "artifactName": "LinkXOrbit-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,

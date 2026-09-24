@@ -38,7 +38,7 @@ function createMainWindow(): void {
     height: 640,
     minWidth: 440,
     minHeight: 520,
-    title: "LinkedIn Connect",
+    title: "LinkXOrbit",
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.js"),
