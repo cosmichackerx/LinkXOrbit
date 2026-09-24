@@ -6,7 +6,8 @@ function run(cmd) {
 
 run("npm prune --omit=dev");
 try {
-  run("npx electron-builder --win --x64");
+  // Pinned CLI + explicit electronVersion in package.json (Electron is pruned from node_modules).
+  run("npx --yes electron-builder@25.1.8 --win --x64 --publish never");
 } finally {
   // Restore devDependencies for local development after packaging.
   run("npm install");

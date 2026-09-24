@@ -13,7 +13,7 @@ function rmIfExists(target) {
   }
 }
 
-exports.default = async function afterPack(context) {
+async function afterPack(context) {
   const appOutDir = context.appOutDir;
 
   const localesDir = path.join(appOutDir, "locales");
@@ -27,4 +27,7 @@ exports.default = async function afterPack(context) {
 
   // Unused stock Electron shell when shipping a custom app.
   rmIfExists(path.join(appOutDir, "resources", "default_app.asar"));
-};
+}
+
+module.exports = afterPack;
+module.exports.default = afterPack;
