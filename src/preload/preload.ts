@@ -1,12 +1,15 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+export type AutomationMode = "grow" | "unfollow";
+
 export type AutomationSettings = {
+  mode: AutomationMode;
   minDelayMs: number;
   maxDelayMs: number;
-  maxConnects: number;
+  maxActionsPerRun: number;
 };
 
-contextBridge.exposeInMainWorld("linkedInConnect", {
+contextBridge.exposeInMainWorld("linkXOrbit", {
   getSessionStatus: () => ipcRenderer.invoke("get-session-status"),
   saveSettings: (settings: AutomationSettings) => ipcRenderer.invoke("save-settings", settings),
   login: () => ipcRenderer.invoke("login"),

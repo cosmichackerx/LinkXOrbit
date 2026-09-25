@@ -23,16 +23,68 @@ body {
   line-height: 1.45;
 }
 
-header h1 {
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.app-header h1 {
   margin: 0 0 4px;
   font-size: 1.35rem;
   font-weight: 600;
 }
 
 .subtitle {
-  margin: 0 0 16px;
+  margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.status-card .status-row + .status-row {
+  margin-top: 8px;
+}
+
+.radio-group {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.radio-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.radio-row input {
+  margin-top: 4px;
+}
+
+.radio-row small {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.settings-status {
+  margin: 10px 0 0;
+}
+
+.btn-icon {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 0.82rem;
 }
 
 .card {

@@ -1,17 +1,45 @@
+const api = window.linkXOrbit;
+
+const viewHome = document.getElementById("viewHome");
+const viewSettings = document.getElementById("viewSettings");
 const sessionBadge = document.getElementById("sessionBadge");
+const modeBadge = document.getElementById("modeBadge");
 const sessionHint = document.getElementById("sessionHint");
+const runHint = document.getElementById("runHint");
 const btnLogin = document.getElementById("btnLogin");
 const btnStart = document.getElementById("btnStart");
 const btnStop = document.getElementById("btnStop");
-const btnSave = document.getElementById("btnSave");
+const btnOpenSettings = document.getElementById("btnOpenSettings");
+const btnBackHome = document.getElementById("btnBackHome");
+const btnSaveSettings = document.getElementById("btnSaveSettings");
+const settingsStatus = document.getElementById("settingsStatus");
 const logEl = document.getElementById("log");
 const minDelay = document.getElementById("minDelay");
 const maxDelay = document.getElementById("maxDelay");
-const maxConnects = document.getElementById("maxConnects");
+const maxActions = document.getElementById("maxActions");
+const modeRadios = document.querySelectorAll('input[name="mode"]');
+
+let cachedSettings = null;
 
 function appendLog(line) {
   logEl.textContent += `${line}\n`;
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+function modeLabel(mode) {
+  return mode === "unfollow" ? "Unfollow connections" : "Grow network";
+}
+
+function applyModeToHomeUi(settings) {
+  modeBadge.textContent = modeLabel(settings.mode);
+  if (settings.mode === "unfollow") {
+    runHint.textContent =
+      "Opens your followers list and unfollows people marked Following (with confirmation).";
+    btnStart.textContent = "Start unfollowing";
+  } else {
+    runHint.textContent = "Opens My Network → Grow and clicks Connect with safe delays.";
+    btnStart.textContent = "Start connecting";
+  }
 }
 
 function setSessionUi(loggedIn) {
@@ -29,30 +57,54 @@ function setSessionUi(loggedIn) {
 }
 
 function settingsFromForm() {
+  const mode =
+    [...modeRadios].find((r) => r.checked)?.value === "unfollow" ? "unfollow" : "grow";
   return {
+    mode,
     minDelayMs: Number(minDelay.value) * 1000,
     maxDelayMs: Number(maxDelay.value) * 1000,
-    maxConnects: Number(maxConnects.value),
+    maxActionsPerRun: Number(maxActions.value),
   };
 }
 
 function loadSettingsToForm(settings) {
+  cachedSettings = settings;
+  for (const radio of modeRadios) {
+    radio.checked = radio.value === settings.mode;
+  }
   minDelay.value = Math.round(settings.minDelayMs / 1000);
   maxDelay.value = Math.round(settings.maxDelayMs / 1000);
-  maxConnects.value = settings.maxConnects;
+  maxActions.value = settings.maxActionsPerRun;
+  applyModeToHomeUi(settings);
+}
+
+function showHome() {
+  viewHome.classList.remove("hidden");
+  viewSettings.classList.add("hidden");
+  btnOpenSettings.classList.remove("hidden");
+  settingsStatus.textContent = "";
+}
+
+function showSettings() {
+  viewHome.classList.add("hidden");
+  viewSettings.classList.remove("hidden");
+  if (cachedSettings) loadSettingsToForm(cachedSettings);
 }
 
 async function refreshStatus() {
-  const status = await window.linkedInConnect.getSessionStatus();
+  const status = await api.getSessionStatus();
   setSessionUi(status.loggedIn);
   loadSettingsToForm(status.settings);
 }
+
+btnOpenSettings.addEventListener("click", showSettings);
+btnBackHome.addEventListener("click", showHome);
 
 btnLogin.addEventListener("click", async () => {
   btnLogin.disabled = true;
   appendLog("Opening LinkedIn sign-in…");
   try {
-    const result = await window.linkedInConnect.login();
+    const result = await api.login();
     setSessionUi(result.loggedIn);
   } finally {
     btnLogin.disabled = false;
@@ -62,32 +114,42 @@ btnLogin.addEventListener("click", async () => {
 btnStart.addEventListener("click", async () => {
   btnStart.disabled = true;
   btnStop.disabled = false;
-  appendLog("Starting automation…");
+  const mode = cachedSettings?.mode ?? "grow";
+  appendLog(`Starting automation (${modeLabel(mode)})…`);
   try {
-    const result = await window.linkedInConnect.startAutomation();
-    if (!result.ok) appendLog(result.error || "Could not start.");
-    else if (result.weeklyLimitReached) {
+    const result = await api.startAutomation();
+    if (!result.ok) {
+      appendLog(result.error || "Could not start.");
+    } else if (result.weeklyLimitReached) {
       appendLog("LinkedIn weekly invite limit reached — run ended automatically.");
+    } else {
+      appendLog(`Run finished (${result.actions} action(s)).`);
     }
   } finally {
     btnStop.disabled = true;
-    btnStart.disabled = !(await window.linkedInConnect.getSessionStatus()).loggedIn;
+    btnStart.disabled = !(await api.getSessionStatus()).loggedIn;
   }
 });
 
 btnStop.addEventListener("click", () => {
-  window.linkedInConnect.stopAutomation();
+  api.stopAutomation();
 });
 
-btnSave.addEventListener("click", async () => {
+btnSaveSettings.addEventListener("click", async () => {
   const s = settingsFromForm();
   if (s.minDelayMs > s.maxDelayMs) {
-    appendLog("Min delay must be ≤ max delay.");
+    settingsStatus.textContent = "Min delay must be ≤ max delay.";
     return;
   }
-  await window.linkedInConnect.saveSettings(s);
-  appendLog("Settings saved.");
+  try {
+    const saved = await api.saveSettings(s);
+    loadSettingsToForm(saved);
+    settingsStatus.textContent = "Settings saved permanently on this PC.";
+    appendLog(`Settings saved — mode: ${modeLabel(saved.mode)}.`);
+  } catch (err) {
+    settingsStatus.textContent = err?.message || "Could not save settings.";
+  }
 });
 
-window.linkedInConnect.onLog(appendLog);
+api.onLog(appendLog);
 refreshStatus();

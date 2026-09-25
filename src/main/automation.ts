@@ -2,11 +2,17 @@ import { BrowserWindow } from "electron";
 import { LINKEDIN_PARTITION } from "./session";
 
 const GROW_URL = "https://www.linkedin.com/mynetwork/grow/";
+const FOLLOWERS_URL =
+  "https://www.linkedin.com/mynetwork/network-manager/people-follow/followers/";
+
+export type AutomationMode = "grow" | "unfollow";
 
 export type AutomationSettings = {
+  mode: AutomationMode;
   minDelayMs: number;
   maxDelayMs: number;
-  maxConnects: number;
+  /** Max connect or unfollow actions per run. */
+  maxActionsPerRun: number;
 };
 
 export type LogFn = (line: string) => void;
@@ -73,6 +79,48 @@ const SCROLL_FEED_SCRIPT = `
 })();
 `;
 
+const CLICK_ONE_FOLLOWING_SCRIPT = `
+(() => {
+  const buttons = Array.from(document.querySelectorAll("button")).filter((btn) => {
+    const text = (btn.innerText || "").trim();
+    return text === "Following";
+  });
+
+  for (const btn of buttons) {
+    const rect = btn.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) continue;
+    const style = window.getComputedStyle(btn);
+    if (style.visibility === "hidden" || style.display === "none") continue;
+    btn.scrollIntoView({ block: "center", behavior: "instant" });
+    const row = btn.closest("li, div[data-view-name], div[componentkey]");
+    const name =
+      row?.querySelector("a[href*='/in/'] span[aria-hidden='true']")?.textContent?.trim() ||
+      row?.querySelector("span[dir='ltr']")?.textContent?.trim() ||
+      "profile";
+    btn.click();
+    return { clicked: true, name };
+  }
+  return { clicked: false };
+})();
+`;
+
+const CONFIRM_UNFOLLOW_MODAL_SCRIPT = `
+(() => {
+  const dialogs = document.querySelectorAll('[role="dialog"], .artdeco-modal, div[aria-labelledby*="unfollow"]');
+  for (const dlg of dialogs) {
+    const text = (dlg.innerText || "").toLowerCase();
+    if (!text.includes("unfollow")) continue;
+    const buttons = Array.from(dlg.querySelectorAll("button"));
+    const confirm = buttons.find((b) => (b.innerText || "").trim().toLowerCase() === "unfollow");
+    if (confirm) {
+      confirm.click();
+      return { confirmed: true };
+    }
+  }
+  return { confirmed: false };
+})();
+`;
+
 /** LinkedIn toast when the weekly connection invitation cap is hit. */
 const CHECK_WEEKLY_LIMIT_SCRIPT = `
 (() => {
@@ -126,22 +174,50 @@ async function detectWeeklyLimit(): Promise<WeeklyLimitCheck> {
 async function sleepMonitored(
   ms: number,
   checkStop: () => boolean,
-  onWeeklyLimit: (message?: string) => void
+  onWeeklyLimit: (message?: string) => void,
+  watchWeeklyLimit = true
 ): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < ms) {
     if (checkStop()) {
       throw new Error("stopped");
     }
-    const limit = await detectWeeklyLimit();
-    if (limit.detected) {
-      onWeeklyLimit(limit.message);
-      stopRequested = true;
-      throw new Error("weekly_limit");
+    if (watchWeeklyLimit) {
+      const limit = await detectWeeklyLimit();
+      if (limit.detected) {
+        onWeeklyLimit(limit.message);
+        stopRequested = true;
+        throw new Error("weekly_limit");
+      }
     }
     const remaining = ms - (Date.now() - start);
     await new Promise((resolve) => setTimeout(resolve, Math.min(750, remaining)));
   }
+}
+
+function createAutomationWindow(title: string): BrowserWindow {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 900,
+    show: true,
+    title,
+    webPreferences: {
+      partition: LINKEDIN_PARTITION,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  win.webContents.setUserAgent(win.webContents.getUserAgent().replace(/Electron\/[^\s]+\s?/, ""));
+  return win;
+}
+
+function closeAutomationWindow(): void {
+  if (automationWindow && !automationWindow.isDestroyed()) {
+    automationWindow.close();
+  }
+  automationWindow = null;
+  stopRequested = false;
 }
 
 export async function runConnectAutomation(
@@ -165,22 +241,7 @@ export async function runConnectAutomation(
     log("Try again next week or use LinkedIn manually until the limit resets.");
   };
 
-  automationWindow = new BrowserWindow({
-    width: 1280,
-    height: 900,
-    show: true,
-    title: "LinkXOrbit — automation",
-    webPreferences: {
-      partition: LINKEDIN_PARTITION,
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  });
-
-  automationWindow.webContents.setUserAgent(
-    automationWindow.webContents.getUserAgent().replace(/Electron\/[^\s]+\s?/, "")
-  );
+  automationWindow = createAutomationWindow("LinkXOrbit — grow network");
 
   const checkStop = () => stopRequested;
 
@@ -194,7 +255,7 @@ export async function runConnectAutomation(
       return automationWindow!.webContents.executeJavaScript(CLICK_ONE_CONNECT_SCRIPT, true);
     };
 
-    while (connected < settings.maxConnects && !checkStop()) {
+    while (connected < settings.maxActionsPerRun && !checkStop()) {
       const limitBefore = await detectWeeklyLimit();
       if (limitBefore.detected) {
         handleWeeklyLimit(limitBefore.message);
@@ -239,11 +300,7 @@ export async function runConnectAutomation(
     }
     throw err;
   } finally {
-    if (automationWindow && !automationWindow.isDestroyed()) {
-      automationWindow.close();
-    }
-    automationWindow = null;
-    stopRequested = false;
+    closeAutomationWindow();
   }
 
   if (weeklyLimitReached) {
@@ -253,6 +310,100 @@ export async function runConnectAutomation(
 
   log(`Finished. ${connected} connection request(s) sent this run.`);
   return { connected, stopped: false };
+}
+
+export async function runUnfollowAutomation(
+  settings: AutomationSettings,
+  log: LogFn
+): Promise<{ unfollowed: number; stopped: boolean }> {
+  if (isAutomationRunning()) {
+    throw new Error("Automation is already running.");
+  }
+
+  stopRequested = false;
+  let unfollowed = 0;
+
+  automationWindow = createAutomationWindow("LinkXOrbit — unfollow");
+
+  const checkStop = () => stopRequested;
+
+  try {
+    log("Opening followers list…");
+    await automationWindow.loadURL(FOLLOWERS_URL);
+    await sleepMonitored(4000, checkStop, () => {}, false);
+
+    const clickFollowing = async () =>
+      automationWindow!.webContents.executeJavaScript(CLICK_ONE_FOLLOWING_SCRIPT, true);
+
+    const confirmUnfollow = async () =>
+      automationWindow!.webContents.executeJavaScript(CONFIRM_UNFOLLOW_MODAL_SCRIPT, true);
+
+    while (unfollowed < settings.maxActionsPerRun && !checkStop()) {
+      let result = await clickFollowing();
+
+      if (!result?.clicked) {
+        log("No Following button in view — scrolling…");
+        await automationWindow.webContents.executeJavaScript(SCROLL_FEED_SCRIPT, true);
+        await sleepMonitored(2500, checkStop, () => {}, false);
+        result = await clickFollowing();
+        if (!result?.clicked) {
+          log("No more Following buttons found. Stopping.");
+          break;
+        }
+      }
+
+      await sleepMonitored(900, checkStop, () => {}, false);
+      const confirmed = await confirmUnfollow();
+      if (!confirmed?.confirmed) {
+        await sleepMonitored(600, checkStop, () => {}, false);
+        const retry = await confirmUnfollow();
+        if (!retry?.confirmed) {
+          log("Unfollow confirmation dialog not found — skipping.");
+          continue;
+        }
+      }
+
+      unfollowed += 1;
+      log(`Unfollowed #${unfollowed}${result.name ? ` (${result.name})` : ""}.`);
+      const wait = randomDelay(settings.minDelayMs, settings.maxDelayMs);
+      log(`Waiting ${Math.round(wait / 1000)}s before next action…`);
+      await sleepMonitored(wait, checkStop, () => {}, false);
+    }
+  } catch (err) {
+    const stopped = checkStop() || (err instanceof Error && err.message === "stopped");
+    if (stopped) {
+      log("Automation stopped.");
+      return { unfollowed, stopped: true };
+    }
+    throw err;
+  } finally {
+    closeAutomationWindow();
+  }
+
+  log(`Finished. ${unfollowed} unfollow action(s) this run.`);
+  return { unfollowed, stopped: false };
+}
+
+export async function runAutomation(
+  settings: AutomationSettings,
+  log: LogFn
+): Promise<{
+  mode: AutomationMode;
+  actions: number;
+  stopped: boolean;
+  weeklyLimitReached?: boolean;
+}> {
+  if (settings.mode === "unfollow") {
+    const result = await runUnfollowAutomation(settings, log);
+    return { mode: "unfollow", actions: result.unfollowed, stopped: result.stopped };
+  }
+  const result = await runConnectAutomation(settings, log);
+  return {
+    mode: "grow",
+    actions: result.connected,
+    stopped: result.stopped,
+    weeklyLimitReached: result.weeklyLimitReached,
+  };
 }
 
 export async function openLoginWindow(log: LogFn): Promise<boolean> {

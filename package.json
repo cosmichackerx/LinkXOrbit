@@ -1,6 +1,6 @@
 {
   "name": "linkxorbit",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "LinkXOrbit — Windows desktop: LinkedIn session save and My Network Connect automation",
   "main": "dist/main/main.js",
   "author": "cosmichackerx",

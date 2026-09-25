@@ -1,30 +1,20 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "path";
-import Store from "electron-store";
 import {
   openLoginWindow,
   requestStopAutomation,
-  runConnectAutomation,
+  runAutomation,
   type AutomationSettings,
 } from "./automation";
 import { hasLinkedInSession } from "./session";
+import { createSettingsStore, normalizeSettings } from "./settings";
 
-type AppSettings = AutomationSettings;
-
-const defaultSettings: AppSettings = {
-  minDelayMs: 45_000,
-  maxDelayMs: 90_000,
-  maxConnects: 15,
-};
-
-const store = new Store<{ settings: AppSettings }>({
-  defaults: { settings: defaultSettings },
-});
+const store = createSettingsStore();
 
 let mainWindow: BrowserWindow | null = null;
 
-function getSettings(): AppSettings {
-  return { ...defaultSettings, ...store.get("settings") };
+function getSettings(): AutomationSettings {
+  return normalizeSettings(store.get("settings"));
 }
 
 function sendLog(line: string): void {
@@ -63,8 +53,12 @@ app.whenReady().then(async () => {
     userDataPath: app.getPath("userData"),
   }));
 
-  ipcMain.handle("save-settings", (_e, settings: AppSettings) => {
-    store.set("settings", settings);
+  ipcMain.handle("save-settings", (_e, settings: AutomationSettings) => {
+    const next = normalizeSettings(settings);
+    if (next.minDelayMs > next.maxDelayMs) {
+      throw new Error("Min delay must be less than or equal to max delay.");
+    }
+    store.set("settings", next);
     return getSettings();
   });
 
@@ -81,7 +75,7 @@ app.whenReady().then(async () => {
     }
     const settings = getSettings();
     try {
-      const result = await runConnectAutomation(settings, sendLog);
+      const result = await runAutomation(settings, sendLog);
       return { ok: true, ...result };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
