@@ -1,13 +1,14 @@
 {
   "name": "linkxorbit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "LinkXOrbit — Windows desktop: LinkedIn session save and My Network Connect automation",
   "main": "dist/main/main.js",
   "author": "cosmichackerx",
   "license": "MIT",
   "scripts": {
-    "build": "tsc && node -e \"require('fs').cpSync('src/renderer','dist/renderer',{recursive:true})\" && node scripts/minify-dist.cjs",
+    "build": "tsc && node -e \"require('fs').cpSync('src/renderer','dist/renderer',{recursive:true});require('fs').cpSync('src/assets','dist/assets',{recursive:true})\" && node scripts/minify-dist.cjs",
     "start": "npm run build && electron .",
+    "icons": "electron scripts/generate-icons.cjs",
     "pack:win": "npm run build && node scripts/pack-win.cjs"
   },
   "dependencies": {
@@ -27,13 +28,16 @@
     "electronVersion": "33.4.11",
     "asar": true,
     "compression": "maximum",
-    "electronLanguages": ["en-US"],
+    "electronLanguages": [
+      "en-US"
+    ],
     "npmRebuild": false,
     "buildDependenciesFromSource": false,
     "removePackageScripts": true,
     "afterPack": "./scripts/electron-after-pack.cjs",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
@@ -41,10 +45,13 @@
       "package.json"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "LinkXOrbit-Setup-${version}.${ext}"
@@ -52,6 +59,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }

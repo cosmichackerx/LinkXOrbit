@@ -2,104 +2,285 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LinkXOrbit</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="app-header">
-      <div>
-        <h1>LinkXOrbit</h1>
-        <p class="subtitle">LinkedIn session automation for Windows</p>
+    <div class="app">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-mark" src="../assets/icon.png" alt="" width="34" height="34" />
+          <div>
+            <div class="brand-name">LinkXOrbit</div>
+            <div class="brand-sub">LinkedIn automation</div>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Main">
+          <button type="button" class="nav-item active" data-view="dashboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4zm0 7h6v-5H4zm10 0h6v-9h-6zm0-16v5h6V4z"/></svg>
+            Dashboard
+          </button>
+          <button type="button" class="nav-item" data-view="activity">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>
+            Activity log
+            <span class="nav-count hidden" id="logUnread">0</span>
+          </button>
+          <button type="button" class="nav-item" data-view="settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5A3.5 3.5 0 1 1 13 8.5a3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+            Settings
+          </button>
+        </nav>
+
+        <div class="sidebar-account">
+          <div class="account-row">
+            <span class="dot" id="sessionDot"></span>
+            <div class="account-text">
+              <div class="account-title" id="sessionTitle">Checking session…</div>
+              <div class="account-sub" id="sessionSub">Stored locally on this PC</div>
+            </div>
+          </div>
+          <button type="button" id="btnLogin" class="btn secondary btn-block btn-sm">Sign in to LinkedIn</button>
+        </div>
+
+        <p class="sidebar-legal">Use responsibly. Automated actions may violate LinkedIn’s User Agreement. You are responsible for your account.</p>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <!-- DASHBOARD -->
+        <section class="view" id="viewDashboard">
+          <header class="page-header">
+            <div>
+              <h1>Dashboard</h1>
+              <p class="page-sub">Monitor your session and run automation.</p>
+            </div>
+            <span id="runStateBadge" class="badge badge-neutral">Idle</span>
+          </header>
+
+          <!-- Onboarding checklist (shown until signed in) -->
+          <div class="card onboarding" id="onboarding">
+            <h2>Get started</h2>
+            <ol class="steps">
+              <li class="step" id="stepSignIn">
+                <span class="step-num">1</span>
+                <div class="step-body">
+                  <strong>Sign in to LinkedIn</strong>
+                  <small>Opens a secure window. Complete login and 2FA, then close it.</small>
+                </div>
+                <button type="button" class="btn primary btn-sm" id="btnLoginInline">Sign in</button>
+              </li>
+              <li class="step" id="stepConfigure">
+                <span class="step-num">2</span>
+                <div class="step-body">
+                  <strong>Choose a mode</strong>
+                  <small>Grow your network or clean up followers in Settings.</small>
+                </div>
+                <button type="button" class="btn secondary btn-sm" data-goto="settings">Open settings</button>
+              </li>
+              <li class="step" id="stepRun">
+                <span class="step-num">3</span>
+                <div class="step-body">
+                  <strong>Start automation</strong>
+                  <small>Runs with randomized, human-like delays.</small>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <!-- Run control -->
+          <div class="card run-card">
+            <div class="run-top">
+              <div class="run-info">
+                <div class="eyebrow">Current mode</div>
+                <div class="run-mode">
+                  <span id="modeTitle">—</span>
+                  <button type="button" class="link-btn" data-goto="settings" id="btnChangeMode">Change</button>
+                </div>
+                <p class="run-desc" id="runHint">Uses the mode saved in Settings.</p>
+                <div class="run-meta" id="runMeta"></div>
+              </div>
+              <div class="run-actions">
+                <button type="button" id="btnStart" class="btn primary btn-lg" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                  <span id="btnStartLabel">Start</span>
+                </button>
+                <button type="button" id="btnStop" class="btn danger btn-lg hidden">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>
+                  <span id="btnStopLabel">Stop</span>
+                </button>
+              </div>
+            </div>
+            <div class="progress-wrap" id="progressWrap">
+              <div class="progress-head">
+                <span id="statDetail">Ready to start.</span>
+                <span id="progressText">0 / 0</span>
+              </div>
+              <div class="progress" role="progressbar" aria-valuemin="0" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPIs -->
+          <div class="kpi-grid">
+            <div class="card kpi">
+              <div class="kpi-label">This run</div>
+              <div class="kpi-value" id="statThisRun">0</div>
+              <div class="kpi-foot">Successful actions</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi-label">
+                All-time
+                <button type="button" id="btnResetStats" class="icon-btn" title="Reset all-time counter" aria-label="Reset all-time counter">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
+                </button>
+              </div>
+              <div class="kpi-value" id="statTotal">0</div>
+              <div class="kpi-foot">Total successful actions</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi-label">Followers</div>
+              <div class="kpi-value accent" id="statFollowers">—</div>
+              <div class="kpi-foot" id="networkStatsDetail">Not fetched yet</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi-label">
+                Following
+                <button type="button" id="btnRefreshCounts" class="icon-btn" title="Refresh followers and following" aria-label="Refresh network counts">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h7V4z"/></svg>
+                </button>
+              </div>
+              <div class="kpi-value accent" id="statFollowing">—</div>
+              <div class="kpi-foot">From your LinkedIn profile</div>
+            </div>
+          </div>
+
+          <!-- Recent activity -->
+          <div class="card">
+            <div class="card-head">
+              <h2>Recent activity</h2>
+              <button type="button" class="link-btn" data-goto="activity">View all</button>
+            </div>
+            <ul class="log-list compact" id="logRecent">
+              <li class="log-empty">No activity yet.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ACTIVITY -->
+        <section class="view hidden" id="viewActivity">
+          <header class="page-header">
+            <div>
+              <h1>Activity log</h1>
+              <p class="page-sub">Everything LinkXOrbit did during this session.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn secondary btn-sm" id="btnCopyLog">Copy</button>
+              <button type="button" class="btn secondary btn-sm" id="btnClearLog">Clear</button>
+            </div>
+          </header>
+          <div class="card log-card">
+            <ul class="log-list" id="log" aria-live="polite">
+              <li class="log-empty">No activity yet.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view hidden" id="viewSettings">
+          <header class="page-header">
+            <div>
+              <h1>Settings</h1>
+              <p class="page-sub">Configure what runs when you press Start.</p>
+            </div>
+          </header>
+
+          <div class="notice hidden" id="runningNotice">Settings are locked while automation is running.</div>
+
+          <form id="settingsForm" novalidate>
+            <div class="card">
+              <h2>Automation mode</h2>
+              <p class="hint">Pick one. You can switch any time between runs.</p>
+              <div class="choice-grid" role="radiogroup">
+                <label class="choice">
+                  <input type="radio" name="mode" value="grow" checked />
+                  <span class="choice-body">
+                    <span class="choice-icon grow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2zm9 4c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></span>
+                    <strong>Grow network</strong>
+                    <small>My Network → Grow. Sends Connect requests.</small>
+                  </span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="mode" value="unfollow" />
+                  <span class="choice-body">
+                    <span class="choice-icon unfollow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zM1 10v2h8v-2zm14 4c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></span>
+                    <strong>Unfollow</strong>
+                    <small>Unfollows accounts marked “Following”. Skips “Follow”.</small>
+                  </span>
+                </label>
+              </div>
+
+              <div class="sub-setting" id="unfollowTargetCard">
+                <div class="field-label">Source list</div>
+                <div class="segmented" role="radiogroup">
+                  <label><input type="radio" name="unfollowTarget" value="followers" checked /><span>Followers <em>Recommended</em></span></label>
+                  <label><input type="radio" name="unfollowTarget" value="following" /><span>Following</span></label>
+                </div>
+                <p class="hint" id="unfollowTargetHint"></p>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Pacing &amp; limits</h2>
+              <p class="hint">A random delay between min and max is used before each action. Longer delays look more natural.</p>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="minDelay" class="field-label">Min delay</label>
+                  <div class="input-suffix"><input type="number" id="minDelay" min="1" max="600" value="45" /><span>sec</span></div>
+                </div>
+                <div class="field">
+                  <label for="maxDelay" class="field-label">Max delay</label>
+                  <div class="input-suffix"><input type="number" id="maxDelay" min="1" max="900" value="90" /><span>sec</span></div>
+                </div>
+                <div class="field">
+                  <label for="maxActions" class="field-label">Max actions per run</label>
+                  <div class="input-suffix"><input type="number" id="maxActions" min="1" max="5000" value="15" /><span>actions</span></div>
+                </div>
+              </div>
+              <p class="field-error hidden" id="settingsError" role="alert"></p>
+              <p class="hint estimate" id="runEstimate"></p>
+            </div>
+
+            <div class="save-bar" id="saveBar">
+              <span class="save-msg" id="settingsStatus" aria-live="polite">All changes saved</span>
+              <div class="actions">
+                <button type="button" id="btnDiscard" class="btn secondary" disabled>Discard</button>
+                <button type="submit" id="btnSaveSettings" class="btn primary" disabled>Save changes</button>
+              </div>
+            </div>
+          </form>
+        </section>
       </div>
-      <button type="button" id="btnOpenSettings" class="btn secondary btn-icon" title="Settings">Settings</button>
-    </header>
+    </div>
 
-    <main id="viewHome">
-      <section class="card status-card">
-        <div class="status-row">
-          <span class="label">Session</span>
-          <span id="sessionBadge" class="badge badge-warn">Checking…</span>
+    <!-- Confirm dialog -->
+    <div class="modal-backdrop hidden" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="modal">
+        <h3 id="confirmTitle">Are you sure?</h3>
+        <p id="confirmBody"></p>
+        <div class="actions end">
+          <button type="button" class="btn secondary" id="confirmCancel">Cancel</button>
+          <button type="button" class="btn danger" id="confirmOk">Confirm</button>
         </div>
-        <div class="status-row">
-          <span class="label">Mode</span>
-          <span id="modeBadge" class="badge badge-neutral">—</span>
-        </div>
-        <p id="sessionHint" class="hint">Session data is stored locally on this PC only.</p>
-      </section>
+      </div>
+    </div>
 
-      <section class="card">
-        <h2>Sign in (once)</h2>
-        <p class="hint">Opens LinkedIn in a secure window. Complete login and 2FA, then close the window.</p>
-        <button type="button" id="btnLogin" class="btn primary">Sign in to LinkedIn</button>
-      </section>
+    <div class="toast-stack" id="toasts" aria-live="polite"></div>
 
-      <section class="card">
-        <h2>Run automation</h2>
-        <p id="runHint" class="hint">Uses the mode saved in Settings.</p>
-        <div class="actions">
-          <button type="button" id="btnStart" class="btn primary" disabled>Start</button>
-          <button type="button" id="btnStop" class="btn secondary" disabled>Stop</button>
-        </div>
-      </section>
-
-      <section class="card log-card">
-        <h2>Activity log</h2>
-        <pre id="log" aria-live="polite"></pre>
-      </section>
-    </main>
-
-    <main id="viewSettings" class="hidden">
-      <section class="card">
-        <h2>Automation mode</h2>
-        <p class="hint">Choose what LinkXOrbit runs when you press Start.</p>
-        <fieldset class="radio-group">
-          <label class="radio-row">
-            <input type="radio" name="mode" value="grow" checked />
-            <span>
-              <strong>Grow network connection</strong>
-              <small>My Network → Grow — clicks Connect</small>
-            </span>
-          </label>
-          <label class="radio-row">
-            <input type="radio" name="mode" value="unfollow" />
-            <span>
-              <strong>Unfollow connections</strong>
-              <small>Followers list — clicks Following, then confirms Unfollow</small>
-            </span>
-          </label>
-        </fieldset>
-      </section>
-
-      <section class="card">
-        <h2>Timing & limits</h2>
-        <label>
-          Min delay between actions (seconds)
-          <input type="number" id="minDelay" min="15" max="600" value="45" />
-        </label>
-        <label>
-          Max delay between actions (seconds)
-          <input type="number" id="maxDelay" min="15" max="900" value="90" />
-        </label>
-        <label>
-          Max actions per run
-          <input type="number" id="maxActions" min="1" max="100" value="15" />
-        </label>
-      </section>
-
-      <section class="card">
-        <div class="actions">
-          <button type="button" id="btnSaveSettings" class="btn primary">Save settings</button>
-          <button type="button" id="btnBackHome" class="btn secondary">Back</button>
-        </div>
-        <p id="settingsStatus" class="hint settings-status" aria-live="polite"></p>
-      </section>
-    </main>
-
-    <footer>
-      <p>Use responsibly. Automated actions may violate LinkedIn’s User Agreement. You are responsible for your account.</p>
-    </footer>
     <script src="renderer.js"></script>
   </body>
 </html>
