@@ -1,6 +1,6 @@
 {
   "name": "linkxorbit",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "LinkXOrbit — Windows desktop app: LinkedIn sign-in once, automate Connect or Unfollow with safe pacing",
   "main": "dist/main/main.js",
   "author": "cosmichackerx",
