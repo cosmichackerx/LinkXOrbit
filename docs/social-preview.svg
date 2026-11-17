@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1626"/>
+      <stop offset="1" stop-color="#0a2c5c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.45" r="0.5">
+      <stop offset="0" stop-color="#1877d6" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#1877d6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2">
+    <ellipse cx="990" cy="300" rx="330" ry="130" transform="rotate(-32 990 300)"/>
+    <ellipse cx="990" cy="300" rx="440" ry="180" transform="rotate(-32 990 300)"/>
+  </g>
+  <image href="ICON_DATA" x="840" y="150" width="300" height="300"/>
+  <text x="96" y="250" font-family="Segoe UI, Arial, sans-serif" font-size="96" font-weight="700" fill="#ffffff">LinkXOrbit</text>
+  <text x="100" y="320" font-family="Segoe UI, Arial, sans-serif" font-size="36" fill="#cfe5ff">LinkedIn automation for Windows</text>
+  <text x="100" y="372" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#8fb4dc">Auto-Connect · Bulk Unfollow · Safe human-like pacing</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">
+    <rect x="100" y="430" width="236" height="46" rx="23" fill="#1877d6"/>
+    <text x="218" y="460" text-anchor="middle" fill="#fff">Free &amp; open source</text>
+    <rect x="352" y="430" width="150" height="46" rx="23" fill="none" stroke="#5ce1a0" stroke-width="2"/>
+    <text x="427" y="460" text-anchor="middle" fill="#5ce1a0">Windows 11</text>
+    <rect x="518" y="430" width="110" height="46" rx="23" fill="none" stroke="#8fb4dc" stroke-width="2"/>
+    <text x="573" y="460" text-anchor="middle" fill="#cfe5ff">MIT</text>
+  </g>
+  <text x="100" y="570" font-family="Segoe UI, Arial, sans-serif" font-size="22" fill="#6b8bb0">github.com/cosmichackerx/LinkXOrbit</text>
+</svg>
