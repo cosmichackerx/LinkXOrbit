@@ -1,58 +1,72 @@
-# LinkXOrbit (Windows desktop)
+<p align="center">
+  <img src="build/icon.png" alt="LinkXOrbit logo" width="120" />
+</p>
 
-**LinkXOrbit** is a desktop app for **Windows 11** that:
+<h1 align="center">LinkXOrbit</h1>
 
-1. Lets you **sign in to LinkedIn once** in an embedded browser window.
-2. **Saves your session** locally (persistent Electron profile — same idea as staying logged in in a browser).
-3. Opens [My Network → Grow](https://www.linkedin.com/mynetwork/grow/) and clicks **Connect** on suggestions, with configurable delays and a per-run limit.
+<p align="center">
+  Windows desktop app to grow and tidy your LinkedIn network: sign in once, then automate <b>Connect</b> or <b>Unfollow</b> with human-like pacing.
+</p>
 
-## Download (recommended)
+<p align="center">
+  <a href="https://github.com/cosmichackerx/LinkXOrbit/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/cosmichackerx/LinkXOrbit?label=download"></a>
+  <a href="https://github.com/cosmichackerx/LinkXOrbit/actions/workflows/build-windows.yml"><img alt="Build" src="https://github.com/cosmichackerx/LinkXOrbit/actions/workflows/build-windows.yml/badge.svg"></a>
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0a66c2">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
+</p>
 
-Pre-built installers are produced by GitHub Actions:
+---
 
-1. Open **[Actions](https://github.com/cosmichackerx/LinkXOrbit/actions)** on this repo.
-2. Open the latest **Build Windows installer** workflow run (green check).
-3. Under **Artifacts**, download **LinkXOrbit-Windows-Setup**.
-4. Run `LinkXOrbit-Setup-<version>.exe` on your PC and follow the installer.
+## Features
 
-Tagged releases (`v*`) also attach the same `.exe` to a GitHub Release.
+- **One-time sign-in** – log in to LinkedIn (including 2FA) in a secure window. The session is saved locally on your PC only.
+- **Two automation modes**
+  - **Grow network** – opens *My Network → Grow* and sends **Connect** requests.
+  - **Unfollow** – opens your *Followers* or *Following* list and unfollows accounts marked “Following”. “Follow” buttons are skipped.
+- **Safe pacing** – random delay between a min and max you set, plus a per-run action limit and an estimated run time.
+- **Weekly-limit detection** – stops automatically when LinkedIn shows the weekly invitation limit message.
+- **Dashboard** – run status, live progress bar, this-run and all-time counters, and live follower/following counts.
+- **Activity log** – timestamped, color-coded log with copy and clear.
+- **Settings** – mode cards, inline validation, unsaved-changes bar (Ctrl+S to save). Settings are locked while a run is active.
 
-## First use on your laptop
+## Download
+
+1. Go to **[Releases](https://github.com/cosmichackerx/LinkXOrbit/releases/latest)**.
+2. Download `LinkXOrbit-Setup-<version>.exe`.
+3. Run the installer and follow the steps. Windows SmartScreen may warn because the installer isn’t code-signed. Choose **More info → Run anyway**.
+
+Builds from every push to `main` are also available as **Artifacts** on the [Actions](https://github.com/cosmichackerx/LinkXOrbit/actions) page.
+
+## Getting started
 
 1. Launch **LinkXOrbit** from the Start menu or desktop shortcut.
-2. Click **Sign in to LinkedIn**, complete login (and 2FA if prompted), then **close** the LinkedIn window.
-3. Adjust **Settings** if you want (defaults: 45–90s between connects, max 15 per run).
-4. Click **Start connecting**. A LinkedIn window opens on the grow page; you can watch progress in the app log.
-5. Use **Stop** anytime.
+2. **Sign in** – click *Sign in to LinkedIn*, finish login and 2FA, then close the LinkedIn window.
+3. **Choose a mode** – open *Settings*, pick *Grow network* or *Unfollow*, adjust delays and limits, then *Save changes*.
+4. **Start** – click *Start connecting* / *Start unfollowing* on the Dashboard. Use **Stop** at any time. The current action finishes first.
 
-If LinkedIn shows the **weekly connection invitation limit** toast (“was not sent because you have reached the weekly limit…”), LinkXOrbit **detects it and auto-stops** so you do not keep clicking in vain.
+Defaults: 45–90 seconds between actions, up to 15 actions per run.
 
-Session files live under your Windows user profile (Electron `userData` path). They are **not** uploaded to GitHub.
+## Privacy
 
-## App size
-
-LinkXOrbit uses **Electron** (Chromium + Node), so the installer is usually **~70–90 MB** even after optimization (max NSIS compression, English-only locale packs, minified JS, production-only dependencies). That is normal for Electron; getting much smaller would mean a different stack (e.g. Tauri + WebView2).
-
-## Build locally (Windows)
-
-```bash
-npm ci
-npm run pack:win
-```
-
-Installer output: `release/LinkXOrbit-Setup-<version>.exe`
+Your LinkedIn session, settings and counters are stored under your Windows user profile (Electron `userData`). Nothing is uploaded anywhere.
 
 ## Development
 
-```bash
+```powershell
 npm ci
-npm start
+npm start          # build and run
+npm run pack:win   # build the installer -> release/LinkXOrbit-Setup-<version>.exe
+npm run icons      # regenerate build/icon.png + icon.ico from build/icon.svg
 ```
 
-## Important
+Tech: Electron + TypeScript, packaged with electron-builder (NSIS). Pushing a `v*` tag builds the installer and publishes a GitHub Release.
 
-Automating connection requests may conflict with [LinkedIn’s User Agreement](https://www.linkedin.com/legal/user-agreement). Use conservative limits, monitor your account, and accept that restrictions or warnings are possible. This project is for personal/educational use; you are responsible for how you use it.
+The installer is about 70–90 MB, which is typical for an Electron app.
 
-## Repository
+## Disclaimer
 
-Private repo: [cosmichackerx/LinkXOrbit](https://github.com/cosmichackerx/LinkXOrbit)
+Automating actions may conflict with [LinkedIn’s User Agreement](https://www.linkedin.com/legal/user-agreement). Use conservative limits and monitor your account. Restrictions or warnings are possible. This project is for personal and educational use, and you are responsible for how you use it.
+
+## License
+
+MIT
