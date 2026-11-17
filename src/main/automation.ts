@@ -114,6 +114,56 @@ const UNFOLLOW_ONE_FOLLOWER_SCRIPT = `
     );
   };
 
+  // Collect document + every open shadow root (LinkedIn renders modals in a shadow DOM outlet).
+  const getRoots = () => {
+    const roots = [document];
+    for (let k = 0; k < roots.length; k++) {
+      for (const el of roots[k].querySelectorAll("*")) {
+        if (el.shadowRoot) roots.push(el.shadowRoot);
+      }
+    }
+    return roots;
+  };
+
+  const isVisible = (el) => {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return false;
+    const cs = getComputedStyle(el);
+    return cs.visibility !== "hidden" && cs.display !== "none";
+  };
+
+  const realClick = (el) => {
+    const opts = { bubbles: true, cancelable: true, composed: true, view: window };
+    el.dispatchEvent(new PointerEvent("pointerdown", opts));
+    el.dispatchEvent(new MouseEvent("mousedown", opts));
+    el.dispatchEvent(new PointerEvent("pointerup", opts));
+    el.dispatchEvent(new MouseEvent("mouseup", opts));
+    el.click();
+  };
+
+  // Find a visible "Unfollow" button inside any open dialog, in light or shadow DOM.
+  const findUnfollowConfirmButton = () => {
+    for (const root of getRoots()) {
+      const dialogs = root.querySelectorAll('[role="alertdialog"], [role="dialog"], .artdeco-modal, dialog[open]');
+      for (const d of dialogs) {
+        for (const b of d.querySelectorAll("button")) {
+          const t = (b.innerText || b.textContent || "").trim().toLowerCase();
+          const l = (b.getAttribute("aria-label") || "").toLowerCase();
+          if ((t === "unfollow" || l === "unfollow" || l.startsWith("unfollow")) && isVisible(b)) return b;
+        }
+      }
+    }
+    return null;
+  };
+
+  // A confirm modal may be left open from a previous attempt — finish it first.
+  const pending = findUnfollowConfirmButton();
+  if (pending) {
+    realClick(pending);
+    await new Promise(r => setTimeout(r, 1200));
+    return { found: true, name: "profile", confirmed: !pending.isConnected || !isVisible(pending), followButtonsSkipped: 0 };
+  }
+
   const allButtons = Array.from(document.querySelectorAll("button")).filter(b => !isExcluded(b));
   const followCount = allButtons.filter(isFollowButton).length;
   const followingBtn = allButtons.find(isFollowingButton);
@@ -146,23 +196,22 @@ const UNFOLLOW_ONE_FOLLOWER_SCRIPT = `
   followingBtn.scrollIntoView({ block: "center", behavior: "instant" });
   followingBtn.click();
 
-  // Wait up to 2.5 seconds for confirmation alertdialog / modal
+  // Wait up to 5 seconds for the confirmation modal and click its "Unfollow" button.
   let confirmed = false;
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 50; i++) {
     await new Promise(r => setTimeout(r, 100));
-    const dialog = document.querySelector('[role="alertdialog"], [role="dialog"], .artdeco-modal');
-    if (dialog) {
-      const buttons = Array.from(dialog.querySelectorAll("button"));
-      const confirmBtn = buttons.find(b => {
-        const t = (b.innerText || "").trim().toLowerCase();
-        const l = (b.getAttribute("aria-label") || "").toLowerCase();
-        return t === "unfollow" || l.includes("unfollow") || b.classList.contains("artdeco-button--primary");
-      });
-      if (confirmBtn) {
-        confirmBtn.click();
-        confirmed = true;
-        break;
+    const confirmBtn = findUnfollowConfirmButton();
+    if (confirmBtn) {
+      await new Promise(r => setTimeout(r, 150));
+      realClick(confirmBtn);
+      // Wait for the modal to close (up to 2s); retry click once if it stays open.
+      for (let j = 0; j < 20; j++) {
+        await new Promise(r => setTimeout(r, 100));
+        if (!confirmBtn.isConnected || !isVisible(confirmBtn)) break;
+        if (j === 8) realClick(confirmBtn);
       }
+      confirmed = !confirmBtn.isConnected || !isVisible(confirmBtn);
+      break;
     }
   }
 
@@ -776,14 +825,35 @@ export async function runUnfollowAutomation(
             moreClicked: boolean;
           }>(`
             (() => {
-              // Always scroll the page down
+              // LinkedIn's newer layout scrolls an inner container, not the window.
+              const scrollables = [document.scrollingElement || document.documentElement];
+              for (const el of document.querySelectorAll("main, div, section")) {
+                if (el.scrollHeight > el.clientHeight + 50) {
+                  const oy = getComputedStyle(el).overflowY;
+                  if (oy === "auto" || oy === "scroll") scrollables.push(el);
+                }
+              }
+              let maxHeight = 0;
+              for (const el of scrollables) {
+                el.scrollTop = el.scrollTop + 1400;
+                maxHeight = Math.max(maxHeight, el.scrollHeight);
+              }
               window.scrollBy({ top: 1400, behavior: "instant" });
+
+              // Bring the last list row into view to trigger infinite loading.
+              const rows = document.querySelectorAll("main li, main [data-view-name] , main .artdeco-list__item");
+              const last = rows[rows.length - 1];
+              if (last) last.scrollIntoView({ block: "end", behavior: "instant" });
+              const lastProfile = Array.from(document.querySelectorAll("main a[href*='/in/']")).pop();
+              if (lastProfile) lastProfile.scrollIntoView({ block: "end", behavior: "instant" });
 
               // Look for the real pagination button at the bottom of the list
               const loadMoreBtn = Array.from(document.querySelectorAll("button")).find(b => {
                 const t = (b.innerText || "").trim().toLowerCase();
                 return (
                   t === "show more results" ||
+                  t === "show more" ||
+                  t === "load more" ||
                   b.classList.contains("scaffold-finite-scroll__load-button")
                 );
               });
@@ -796,7 +866,7 @@ export async function runUnfollowAutomation(
               }
 
               return {
-                scrollHeight: document.documentElement.scrollHeight,
+                scrollHeight: maxHeight,
                 moreClicked
               };
             })()
@@ -843,7 +913,15 @@ export async function runUnfollowAutomation(
       } else {
         const profileName = result?.name || "profile";
         log(`Could not confirm unfollow for ${profileName} — scrolling down to next account.`);
-        await safeExecuteScript(`window.scrollBy({ top: 220, behavior: "smooth" });`);
+        await safeExecuteScript(`(() => {
+          window.scrollBy({ top: 220, behavior: "instant" });
+          for (const el of document.querySelectorAll("main, div, section")) {
+            if (el.scrollHeight > el.clientHeight + 50) {
+              const oy = getComputedStyle(el).overflowY;
+              if (oy === "auto" || oy === "scroll") el.scrollTop = el.scrollTop + 220;
+            }
+          }
+        })()`);
         await sleepMonitored(1000, checkStop, () => {}, false);
       }
     }
